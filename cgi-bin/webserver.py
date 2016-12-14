@@ -42,7 +42,7 @@ def criaPacote(version, ihl, type_of_service, total_length, identification, flag
 	dest = "{:032b}".format(destination_address)
 	padd =  "{:08b}".format(padding)
 	
-	s = ""
+	s = ''
 	for c in options:
 		s =  s + "{:08b}".format(ord(c))
 	
@@ -50,65 +50,11 @@ def criaPacote(version, ihl, type_of_service, total_length, identification, flag
 	return pacote
 
 
-"""
-#Define estrutura para cabeçalho do pacote de dados
-class Header(Structure):
-	_fields_ = [("version",c_uint,4), ("ihl",c_uint,4), ("type-of-service",c_uint,8), ("total-lenght",c_uint,16), ("identification",c_uint,16), ("flags",c_uint, 3), ("fragment-offset",c_uint,13), ("time-to-live",c_uint,16), ("protocol",c_uint,8),
-("header-checksum",c_uint,16), ("source-address",c_uint,32), ("destination-address",c_uint,32), ("options",c_wchar_p), ("padding",c_uint,8)]
-
-#Define lista de campos do cabeçalho
-fields_header = ['version','ihl','type-of-service', 'total-length', 'identification', 'flags', 'fragment-offset', 'time-to-live', 'protocol', 'header-checksum', 'source-address', 'destination-address', 'options', 'padding']
-
-
-
-
-#Define funcao que constroi cabeçalho para envio. values: dict => {campo : valor }
-def buildPackageRequest(values):
-
-	#Set valores de campos do cabeçalho	
-	version = values['version']
-	ihl = values['ihl']
-	type_of_service = values['type-of-service']
-	total_lenght = values['total-length']
-	identification = values['identification']
-	flags = values['flags']
-	fragment_offset = values['fragment-offset']
-	time_to_live = values['time-to-live']
-	protocol = values['protocol']
-	header_checksum = values['header-checksum']
-	source_address = values['source-address']
-	destination_address = values['destination-address']
-	options = values['options']
-	padding = values['padding']
-	
-	#Controi estrutura de campos de bits Header para cabeçalho
-	package = Header(version, ihl, type_of_service, total_lenght, identification, flags, fragment_offset, time_to_live, protocol, header_checksum, source_address, destination_address,options, padding)
-	return package
-
-#Define funcao que constroi dict com campos de um form cgi para posterior contrucao do cabecalho
-def buildDictFields(version, ihl, type_of_service, total_lenght, identification, flags, fragment_offset, time_to_live, protocol, header_checksum, source_address, destination_address, options, padding):
-	
-	values = {}.fromkeys(fields_header)
-	values['version'] = version
-	values['ihl'] = ihl
-	values['type-of-service'] = type_service
-	values['total-length'] = total_lenght
-	values['identification'] = identification
-	values['flags'] = flags
-	values['fragment-offset'] = fragment_offset
-	values['time-to-live'] = time_to_live
-	values['protocol'] = protocol
-	values['header-checksum'] = header_checksum
-	values['source-address'] = source_address
-	values['destination-address'] = destination_address
-        values['options'] = options
-	values['padding'] = padding
-	return values
-	
-"""
 def main():
 	#hablita cgi
-	cgitb.enable()    
+	cgitb.enable() 
+
+	host = '192.168.1.104' 
 
 
 	#cabecalho obrigatorio de html
@@ -128,7 +74,7 @@ def main():
 	if(maq1_ps=='ps'):
 		protocol = 1
 		version = 2
-		ihl = 24
+		ihl = 15
 		type_of_service = 0
 		identification = 1
 		flags = 0
@@ -143,7 +89,7 @@ def main():
 		if not maq1_ps_t:
 			total_length = 24 #bytes
 			msg = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
-			html = startClientSocket('192.168.1.103',9001,msg)
+			html = startClientSocket(host,9001,msg)
 			print(html)
 			
 		else:
@@ -152,7 +98,7 @@ def main():
 			for caracter in maq1_ps_t:
 				total_length = total_length + 1
 			msg = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
-			html = startClientSocket('192.168.1.103',9001,msg)
+			html = startClientSocket(host,9001,msg)
 			print(html)
 			
 
@@ -162,10 +108,9 @@ def main():
 	maq1_df = form.getvalue("maq1_df")
 	maq1_df_t = form.getvalue("maq1-df")
 	if(maq1_df=='df'):
-		print("DF")
 		protocol = 2
 		version = 2
-		ihl = 24
+		ihl = 15
 		type_of_service = 0
 		identification = 1
 		flags = 0
@@ -180,7 +125,7 @@ def main():
 		if not maq1_df_t:
 			total_length = 24 #bytes
 			msg = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
-			html = startClientSocket('192.168.1.103',9001,msg)
+			html = startClientSocket(host,9001,msg)
 			print(html)
 		else:
 			options = maq1_df_t
@@ -188,7 +133,7 @@ def main():
 			for caracter in maq1_df_t:
 				total_length = total_length + 1
 			msg = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
-			html = startClientSocket('192.168.1.103',9001,msg)
+			html = startClientSocket(host,9001,msg)
 			print(html)
 	
 
@@ -198,10 +143,9 @@ def main():
 	maq1_finger = form.getvalue("maq1_finger")
 	maq1_finger_t = form.getvalue("maq1-finger")
 	if(maq1_finger=='finger'):
-		print("FINGER")
 		protocol = 3
 		version = 2
-		ihl = 24
+		ihl = 15
 		type_of_service = 0
 		identification = 1
 		flags = 0
@@ -216,7 +160,7 @@ def main():
 		if not maq1_finger_t:
 			total_length = 24 #bytes
 			msg = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
-			html = startClientSocket('192.168.1.103',9001,msg)
+			html = startClientSocket(host,9001,msg)
 			print(html)
 		else:
 			options = maq1_finger_t
@@ -224,7 +168,7 @@ def main():
 			for caracter in maq1_finger_t:
 				total_length = total_length + 1
 			msg = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
-			html = startClientSocket('192.168.1.103',9001,html)
+			html = startClientSocket(host,9001,html)
 			print(html)
 
 
@@ -233,10 +177,9 @@ def main():
 	maq1_uptime = form.getvalue("maq1_uptime")
 	maq1_uptime_t = form.getvalue("maq1-uptime")
 	if(maq1_uptime=='uptime'):
-		print("UPTIME")
 		protocol = 4
 		version = 2
-		ihl = 24
+		ihl = 15
 		type_of_service = 0
 		identification = 1
 		flags = 0
@@ -251,7 +194,7 @@ def main():
 		if not maq1_uptime_t:
 			total_length = 24 #bytes
 			msg = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
-			html = startClientSocket('192.168.1.103',9001,msg)
+			html = startClientSocket(host,9001,msg)
 			print(html)
 		else:
 			options = maq1_uptime_t
@@ -259,8 +202,8 @@ def main():
 			for caracter in maq1_uptime_t:
 				total_length = total_length + 1
 			msg = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
-			html = startClientSocket('192.168.1.103',9001,msg)
-			print(enviaMensagem(html))
+			html = startClientSocket(host,9001,msg)
+			print(html)
 
 
 
