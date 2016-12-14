@@ -6,7 +6,76 @@ from ctypes import *
 from socket import *
 from thread import *
 
+#Funcao que reecebe mensagem de bits enviados e retorna html para ser impresso 
+def decodificaMensagem(pacote_obtido,pacote_envio,port):
+	dic = {}
+	dic['version'] = pacote_obtido[0:4]
+	dic['ihl'] = pacote_obtido[4:8]
+	dic['type_of_service'] = pacote_obtido[8:16]
+	dic['total_length'] = pacote_obtido[16:32]
+	dic['identification'] = pacote_obtido[32:48]
+	dic['flags'] = pacote_obtido[48:51]
+	dic['fragment_offset'] = pacote_obtido[51:64]
+	dic['time_to_live'] = pacote_obtido[64:72]
+	dic['protocol'] = pacote_obtido[72:80]
+	dic['header_checksum'] = pacote_obtido[80:96]
+	dic['source_address'] = pacote_obtido[96:128]
+	dic['destination_address'] = pacote_obtido[128:160]
+	dic['opcoes'] = pacote_obtido[160:192]
+	dic['padding'] = pacote_obtido[192:200]
+	tamanho = len(pacote_obtido)
+	html_bin = pacote_obtido[200:tamanho]#guarda versao binaria de html
+	protocol = int(dic['protocol'],2)#guarda versao numerica de protocol
+	
+	if(port==9001):
+		comando_html = "<h1 align='center'> MAQUINA 1 </h1>"
+	elif(port==9002):
+		comando_html = "<h1 align='center'> MAQUINA 2 </h1>"
+	elif(port==9003):
+		comando_html = "<h1 align='center'> MAQUINA 3 </h1>"
 
+	if(protocol==1):
+		comando_html = comando_html + "<h2> ###Comando PS:</h2>"
+	elif(protocol==2):
+		comando_html = comando_html + "<h2> ###Comando DF:</h2>"
+	elif(protocol==3):
+		comando_html = comando_html + "<h2> ###Comando FINGER:</h2>"
+	elif(protocol==4):
+		comando_html = comando_html + "<h2> ###Comando UPTIME:</h2>"
+		
+	
+	html = ''#guarda html obtido para ser impresso
+	
+	#tranforma bits de campo de dados html em string caracteres 
+	if html_bin:
+		j = 0
+		k = 8
+		nro_str = len(html_bin)/8
+		l = []
+		string = ''
+		for i in range(nro_str):
+			l = l + [html_bin[j:k]]
+			j = k
+			k = k + 8
+
+		for st in l:
+			string = string + chr(int(st,2))
+			
+		html = string
+	
+	#verificacoes de campo time_to_live e identification
+	dic_envio = {}
+	dic_envio['time_to_live'] = pacote_envio[64:72]
+	dic_envio['identification'] = pacote_envio[32:48]
+	if (int(dic_envio['time_to_live'],2)!=(int(dic['time_to_live'],2)+1)):
+		html = comando_html + "<h3> ERRO DE TIME LIVE </h3>"
+	elif(int(dic_envio['identification'],2)!=(int(dic['identification'],2)-1)):
+		html = comando_html + "<h3> ERRO DE IDENTIFICATION </h3>"
+	elif(dic['flags']!='111'):
+		html = comando_html + "<h3> ERRO DE FLAG </h3>"
+	
+	
+	return html
 #Define funcao inicia conexao Socket Cliente TCP
 def startClientSocket(host,port,msg):
 	
@@ -17,7 +86,7 @@ def startClientSocket(host,port,msg):
 
 	tcp.send(msg)
 
-	msg_recebida = tcp.recv(1024)
+	msg_recebida = tcp.recv(5000)
 
 	tcp.close()
 	
@@ -49,22 +118,8 @@ def criaPacote(version, ihl, type_of_service, total_length, identification, flag
 	pacote = vers + ih + ts + tl + ide + fl + frag + time + prot + check + source + dest + s + padd
 	return pacote
 
-
-def main():
-	#hablita cgi
-	cgitb.enable() 
-
-	host = '192.168.1.104' 
-
-
-	#cabecalho obrigatorio de html
-	print("Content-Type: text/html;charset=utf-8\r\n\r\n")
-
-	form = cgi.FieldStorage()
-
-	
-
-
+def threadMaq1(form,host,port):
+		
 	# Contrucao de pacote para MAQUINA 1 
 	
 	#COMANDO PS - MAQUINA 1	
@@ -88,8 +143,9 @@ def main():
 		# se parametros estao vazios
 		if not maq1_ps_t:
 			total_length = 24 #bytes
-			msg = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
-			html = startClientSocket(host,9001,msg)
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
 			print(html)
 			
 		else:
@@ -97,9 +153,11 @@ def main():
 			total_length = 21
 			for caracter in maq1_ps_t:
 				total_length = total_length + 1
-			msg = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
-			html = startClientSocket(host,9001,msg)
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
 			print(html)
+			
 			
 
 
@@ -124,16 +182,18 @@ def main():
 		# se parametros estao vazios
 		if not maq1_df_t:
 			total_length = 24 #bytes
-			msg = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
-			html = startClientSocket(host,9001,msg)
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
 			print(html)
 		else:
 			options = maq1_df_t
 			total_length = 21
 			for caracter in maq1_df_t:
 				total_length = total_length + 1
-			msg = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
-			html = startClientSocket(host,9001,msg)
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
 			print(html)
 	
 
@@ -159,18 +219,19 @@ def main():
 		# se parametros estao vazios
 		if not maq1_finger_t:
 			total_length = 24 #bytes
-			msg = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
-			html = startClientSocket(host,9001,msg)
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
 			print(html)
 		else:
 			options = maq1_finger_t
 			total_length = 21
 			for caracter in maq1_finger_t:
 				total_length = total_length + 1
-			msg = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
-			html = startClientSocket(host,9001,html)
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
 			print(html)
-
 
 	#COMANDO UPTIME - MAQUINA 1	
 	
@@ -193,18 +254,346 @@ def main():
 		# se parametros estao vazios
 		if not maq1_uptime_t:
 			total_length = 24 #bytes
-			msg = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
-			html = startClientSocket(host,9001,msg)
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
 			print(html)
 		else:
 			options = maq1_uptime_t
 			total_length = 21
 			for caracter in maq1_uptime_t:
 				total_length = total_length + 1
-			msg = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
-			html = startClientSocket(host,9001,msg)
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
 			print(html)
 
+def threadMaq2(form,host,port):
+		
+	# Contrucao de pacote para MAQUINA 1 
+	
+	#COMANDO PS - MAQUINA 2
+	
+	maq2_ps = form.getvalue("maq2_ps")
+	maq2_ps_t = form.getvalue("maq2-ps")
+	if(maq2_ps=='ps'):
+		protocol = 1
+		version = 2
+		ihl = 15
+		type_of_service = 0
+		identification = 1
+		flags = 0
+		fragment_offset = 0
+		time_to_live = 1
+		source_address = 3232235881
+		destination_address = 3232235879
+		header_checksum = 0
+		options = ""
+		padding = 0
+		# se parametros estao vazios
+		if not maq2_ps_t:
+			total_length = 24 #bytes
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+			print(html)
+			
+		else:
+			options = maq2_ps_t
+			total_length = 21
+			for caracter in maq2_ps_t:
+				total_length = total_length + 1
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+			print(html)
+			
+			
+
+
+	#COMANDO DF - MAQUINA 2
+	
+	maq2_df = form.getvalue("maq2_df")
+	maq2_df_t = form.getvalue("maq2-df")
+	if(maq2_df=='df'):
+		protocol = 2
+		version = 2
+		ihl = 15
+		type_of_service = 0
+		identification = 1
+		flags = 0
+		fragment_offset = 0
+		time_to_live = 1
+		source_address = 3232235881
+		destination_address = 3232235879
+		header_checksum = 0
+		options = ""
+		padding = 0
+		# se parametros estao vazios
+		if not maq2_df_t:
+			total_length = 24 #bytes
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+			print(html)
+		else:
+			options = maq2_df_t
+			total_length = 21
+			for caracter in maq2s_df_t:
+				total_length = total_length + 1
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+			print(html)
+	
+
+
+	#COMANDO FINGER - MAQUINA 2	
+	
+	maq2_finger = form.getvalue("maq2_finger")
+	maq2_finger_t = form.getvalue("maq2-finger")
+	if(maq2_finger=='finger'):
+		protocol = 3
+		version = 2
+		ihl = 15
+		type_of_service = 0
+		identification = 1
+		flags = 0
+		fragment_offset = 0
+		time_to_live = 1
+		source_address = 3232235881
+		destination_address = 3232235879
+		header_checksum = 0
+		options = ""
+		padding = 0
+		# se parametros estao vazios
+		if not maq2_finger_t:
+			total_length = 24 #bytes
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+			print(html)
+		else:
+			options = maq2_finger_t
+			total_length = 21
+			for caracter in maq2_finger_t:
+				total_length = total_length + 1
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+			print(html)
+
+	#COMANDO UPTIME - MAQUINA 2	
+	
+	maq2_uptime = form.getvalue("maq2_uptime")
+	maq2_uptime_t = form.getvalue("maq2-uptime")
+	if(maq2_uptime=='uptime'):
+		protocol = 4
+		version = 2
+		ihl = 15
+		type_of_service = 0
+		identification = 1
+		flags = 0
+		fragment_offset = 0
+		time_to_live = 1
+		source_address = 3232235881
+		destination_address = 3232235879
+		header_checksum = 0
+		options = ""
+		padding = 0
+		# se parametros estao vazios
+		if not maq2_uptime_t:
+			total_length = 24 #bytes
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+			print(html)
+		else:
+			options = maq2_uptime_t
+			total_length = 21
+			for caracter in maq2_uptime_t:
+				total_length = total_length + 1
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+			print(html)
+def threadMaq3(form,host,port):
+		
+	# Contrucao de pacote para MAQUINA 1 
+	
+	#COMANDO PS - MAQUINA 3
+	
+	maq3_ps = form.getvalue("maq3_ps")
+	maq3_ps_t = form.getvalue("maq3-ps")
+	if(maq3_ps=='ps'):
+		protocol = 1
+		version = 2
+		ihl = 15
+		type_of_service = 0
+		identification = 1
+		flags = 0
+		fragment_offset = 0
+		time_to_live = 1
+		source_address = 3232235881
+		destination_address = 3232235879
+		header_checksum = 0
+		options = ""
+		padding = 0
+		# se parametros estao vazios
+		if not maq3_ps_t:
+			total_length = 24 #bytes
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+			print(html)
+			
+		else:
+			options = maq3_ps_t
+			total_length = 21
+			for caracter in maq3_ps_t:
+				total_length = total_length + 1
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+			print(html)
+			
+			
+
+
+	#COMANDO DF - MAQUINA 3	
+	
+	maq3_df = form.getvalue("maq3_df")
+	maq3_df_t = form.getvalue("maq3-df")
+	if(maq3_df=='df'):
+		protocol = 2
+		version = 2
+		ihl = 15
+		type_of_service = 0
+		identification = 1
+		flags = 0
+		fragment_offset = 0
+		time_to_live = 1
+		source_address = 3232235881
+		destination_address = 3232235879
+		header_checksum = 0
+		options = ""
+		padding = 0
+		# se parametros estao vazios
+		if not maq3_df_t:
+			total_length = 24 #bytes
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+			print(html)
+		else:
+			options = maq3_df_t
+			total_length = 21
+			for caracter in maq3_df_t:
+				total_length = total_length + 1
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+			print(html)
+	
+
+
+	#COMANDO FINGER - MAQUINA 3	
+	
+	maq3_finger = form.getvalue("maq3_finger")
+	maq3_finger_t = form.getvalue("maq3-finger")
+	if(maq3_finger=='finger'):
+		protocol = 3
+		version = 2
+		ihl = 15
+		type_of_service = 0
+		identification = 1
+		flags = 0
+		fragment_offset = 0
+		time_to_live = 1
+		source_address = 3232235881
+		destination_address = 3232235879
+		header_checksum = 0
+		options = ""
+		padding = 0
+		# se parametros estao vazios
+		if not maq3_finger_t:
+			total_length = 24 #bytes
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+			print(html)
+		else:
+			options = maq3_finger_t
+			total_length = 21
+			for caracter in maq3_finger_t:
+				total_length = total_length + 1
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+			print(html)
+
+	maq3_uptime = form.getvalue("maq3_uptime")
+	maq3_uptime_t = form.getvalue("maq3-uptime")
+	if(maq3_uptime=='uptime'):
+		protocol = 4
+		version = 2
+		ihl = 15
+		type_of_service = 0
+		identification = 1
+		flags = 0
+		fragment_offset = 0
+		time_to_live = 1
+		source_address = 3232235881
+		destination_address = 3232235879
+		header_checksum = 0
+		options = ""
+		padding = 0
+		# se parametros estao vazios
+		if not maq3_uptime_t:
+			total_length = 24 #bytes
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+			print(html)
+		else:
+			options = maq3_uptime_t
+			total_length = 21
+			for caracter in maq1_uptime_t:
+				total_length = total_length + 1
+			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+			pacote_obtido = startClientSocket(host,port,pacote_envio)
+			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+			print(html)
+
+
+def main():
+	#hablita cgi
+	cgitb.enable() 
+
+	host = '192.168.1.101' 
+
+
+	#cabecalho obrigatorio de html
+	print("Content-Type: text/html;charset=utf-8\r\n\r\n")
+
+	form = cgi.FieldStorage()
+	
+	threadMaq1(form,host,9001)
+	threadMaq2(form,host,9002)
+	threadMaq3(form,host,9003)
+	"""	
+	#Cria uma thread para cada porta
+	try:
+		start_new_thread(threadMaq1, (form,host,9001,))
+		#start_new_thread(startServerTCP, (host,9002,))
+		#start_new_thread(startServerTCP, (host,9003,))
+	except:
+		print("Nao foi possivel criar threads")"""
+	
+	
+	
+	
+		
 
 
 

@@ -191,21 +191,94 @@ def criaPaginaResposta(dic,port):
 	     
 	return html
 
+def criaCabecalho(version, ihl, type_of_service, total_length, identification, flags, fragment_offset, time_to_live, protocol, header_checksum, source_address, destination_address, options, padding):
+	vers = "{:04b}".format(version)
+	ih =  "{:04b}".format(ihl)
+	ts =  "{:08b}".format(type_of_service)
+	tl = "{:016b}".format(total_length)
+	ide =  "{:016b}".format(identification)
+	fl =  "{:03b}".format(flags)
+	frag =  "{:013b}".format(fragment_offset)
+	time =  "{:08b}".format(time_to_live)
+	prot =  "{:08b}".format(protocol)
+	check =  "{:016b}".format(header_checksum)
+	source =  "{:032b}".format(source_address)
+	dest = "{:032b}".format(destination_address)
+	padd =  "{:08b}".format(padding)
+	
+	s = ''
+	
+	#se options esta vazio zera 32 bits
+	if not options:
+		s = "{:032b}".format(0)	
+	else:
+		for c in options:
+			s =  s + "{:08b}".format(ord(c))
+	
+	cabecalho = vers + ih + ts + tl + ide + fl + frag + time + prot + check + source + dest + s + padd
+	return cabecalho
+
 #Funcao que cria pacote de resposta
 def criaPacoteResposta(mensagem, port):
-	#obtem dicionario dos campos associados ao pacote recebeido	
-	if mensagem:
-		d = decodificaMensagem(mensagem)
-	
-	#verifica parametros maliciosos em options
-	if '|' in d['options'] or ';' in d['options'] or '>' in d['options']:
-		html = '<h3> PARAMETROS MALICIOSOS </h3>'
-		return html
+		
+	if(port == 9001):
+		maq = "<h1 align = 'center' > MAQUINA 1 </h1>"
+	if(port == 9002):
+		maq = "<h1  align = 'center'> MAQUINA 2 </h1>"
+	if(port == 9003):
+		maq = "<h1  align = 'center'> MAQUINA 3 </h1>"
 
-	else:
-		html = criaPaginaResposta(d,port)
-	 	return html
-	
+	if mensagem:
+		d = decodificaMensagem(mensagem)#obtem dicionario dos campos associados ao pacote recebeido
+		# set campos do cabeçalho do pacote de resposta
+		version = 2
+		ihl = 15
+		type_of_service = 0
+		identification = int(d['identification']) + 1
+		flags = 7
+		fragment_offset = 0
+		time_to_live = int(d['time_to_live']) - 1
+		protocol = int(d['protocol'],2)
+		header_checksum = 0
+		source_address = 3232235879
+		destination_address = 3232235881
+		options = ''
+		padding = 0
+		
+		if(protocol==1):
+			comando_html = "<h2> ###Comando PS:</h2>"
+		elif(protocol==2):
+			comando_html = "<h2> ###Comando DF:</h2>"
+		elif(protocol==3):
+			comando_html = "<h2> ###Comando FINGER:</h2>"
+		elif(protocol==4):
+			comando_html = "<h2> ###Comando UPTIME:</h2>"
+		
+		#verifica parametros maliciosos em campo options
+		if '|' in d['options'] or ';' in d['options'] or '>' in d['options']:
+			html = maq + comando_html + '<h3> PARAMETROS MALICIOSOS </h3>'		
+		#verifica se campo flags e de envio : 000
+		elif d['flags'] != '000':
+			html =maq +  comando_html + '<h3> FLAG NAO COMPATIVEL PARA ENVIO </h3>'
+		#verifica se campo version e 2
+		elif d['version'] != '0010':
+			html = maq + comando_html + '<h3> ERRO DE VERSAO </h3>'
+		else:
+			html = criaPaginaResposta(d,port)
+		
+
+		#transforma pagina html em bits para envio junto ao cabeçalho
+		s = ''
+		t = 0
+		for c in html:
+			if(c!=''):
+				s =  s + "{:08b}".format(ord(c))
+			t = t + 1
+		
+		total_length = 24 + t
+		cabecalho = criaCabecalho(version,ihl,type_of_service,total_length, identification, flags,fragment_offset, time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+		pacote_resposta = cabecalho + s
+		return pacote_resposta
 	
 			
 #Inicia daemon TCP com socket
@@ -220,9 +293,9 @@ def startServerTCP(host, port):
 
 	while True:
 		conexao, cliente = tcp.accept()
-		mensagem = conexao.recv(1024)
-		html = criaPacoteResposta(mensagem, port)
-		conexao.send(html)
+		mensagem = conexao.recv(5000)
+		pacote = criaPacoteResposta(mensagem, port)
+		conexao.send(pacote)
 		conexao.close()
 			
 
