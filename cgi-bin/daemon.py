@@ -6,6 +6,26 @@ from thread import *
 import os
 import subprocess
 
+#Funcao que recebe um conjunto de bits como dados e retorna checksum de 16 bits a partir do calculo de crc
+def crc16(data):
+	num_bits_data = len(data)
+	poli_crc16 = int('11000000000000101',2) #x16 + x15 + x2 + 1
+	atual_data = data #atual_data guarda dados apos processamento de crc
+
+	#executa algoritmo enquanto o numero de bits for diferente de 16
+	while(len(atual_data)!=16):
+		#se bit mais a esquerda e 1 faz xor com 17 mais significativos de data com polinomio e descarta bit mais significativo
+		if(atual_data[0]=='1'):
+			data_17 = int(atual_data[0:17],2)
+			data_xor = data_17 ^ poli_crc16
+			atual_data = "{:017b}".format(data_xor) + atual_data[17:]
+			atual_data = atual_data[1:]
+		else:
+			#se bit mais a esquerda e 0, apenas descarta bit mais a esquerda
+			atual_data = atual_data[1:]
+		
+	return atual_data
+
 #Funcao que reecebe mensagem de bits enviados e retorna dict com valores inteiros para cada campos do cabecalho
 def decodificaMensagem(msg):
 	dic = {}
@@ -104,7 +124,7 @@ def criaPaginaResposta(dic,port):
 		f = os.popen(cmd) # roda comando PS
 		out = f.read() # guarda em out saida de PS
 		
-		#separar strings de resultado de PS para fins de formatação
+		#separar strings de resultado de PS para fins de formatacao
 		# guarda indices de \n
 		barra_n = []
 		i = 0
@@ -135,7 +155,7 @@ def criaPaginaResposta(dic,port):
 		f = os.popen(cmd) # roda comando PS
 		out = f.read() # guarda em out saida de PS
 		
-		#separar strings de resultado de PS para fins de formatação
+		#separar strings de resultado de PS para fins de formatacao
 		# guarda indices de \n
 		barra_n = []
 		i = 0
@@ -167,7 +187,7 @@ def criaPaginaResposta(dic,port):
 		f = os.popen(cmd) # roda comando PS
 		out = f.read() # guarda em out saida de PS
 		
-		#separar strings de resultado de PS para fins de formatação
+		#separar strings de resultado de PS para fins de formatacao
 		# guarda indices de \n
 		barra_n = []
 		i = 0
@@ -254,6 +274,9 @@ def criaPacoteResposta(mensagem, port):
 		elif(protocol==4):
 			comando_html = "<h2> ###Comando UPTIME:</h2>"
 		
+		#obtem cheksum de mensagem recebida para verificacao
+		checksum_rec = crc16(mensagem[0:80]+mensagem[96:])
+		
 		#verifica parametros maliciosos em campo options
 		if '|' in d['options'] or ';' in d['options'] or '>' in d['options']:
 			html = maq + comando_html + '<h3> PARAMETROS MALICIOSOS </h3>'		
@@ -263,6 +286,9 @@ def criaPacoteResposta(mensagem, port):
 		#verifica se campo version e 2
 		elif d['version'] != '0010':
 			html = maq + comando_html + '<h3> ERRO DE VERSAO </h3>'
+		#verifica campo de checksum
+		elif d['header_checksum']!=checksum_rec:
+			html = maq + comando_html + '<h3> ERRO DE CHECKSUM DE ENVIO </h3>'
 		else:
 			html = criaPaginaResposta(d,port)
 		

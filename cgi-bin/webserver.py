@@ -6,6 +6,26 @@ from ctypes import *
 from socket import *
 from thread import *
 
+#Funcao que recebe um conjunto de bits como dados e retorna checksum de 16 bits a partir do calculo de crc
+def crc16(data):
+	num_bits_data = len(data)
+	poli_crc16 = int('11000000000000101',2) #x16 + x15 + x2 + 1
+	atual_data = data #atual_data guarda dados apos processamento de crc
+
+	#executa algoritmo enquanto o numero de bits for diferente de 16
+	while(len(atual_data)!=16):
+		#se bit mais a esquerda e 1 faz xor com 17 mais significativos de data com polinomio e descarta bit mais significativo
+		if(atual_data[0]=='1'):
+			data_17 = int(atual_data[0:17],2)
+			data_xor = data_17 ^ poli_crc16
+			atual_data = "{:017b}".format(data_xor) + atual_data[17:]
+			atual_data = atual_data[1:]
+		else:
+			#se bit mais a esquerda e 0, apenas descarta bit mais a esquerda
+			atual_data = atual_data[1:]
+		
+	return atual_data
+
 #Funcao que reecebe mensagem de bits enviados e retorna html para ser impresso 
 def decodificaMensagem(pacote_obtido,pacote_envio,port):
 	dic = {}
@@ -106,15 +126,20 @@ def criaPacote(version, ihl, type_of_service, total_length, identification, flag
 	frag =  "{:013b}".format(fragment_offset)
 	time =  "{:08b}".format(time_to_live)
 	prot =  "{:08b}".format(protocol)
-	check =  "{:016b}".format(header_checksum)
 	source =  "{:032b}".format(source_address)
 	dest = "{:032b}".format(destination_address)
 	padd =  "{:08b}".format(padding)
 	
+
 	s = ''
 	for c in options:
 		s =  s + "{:08b}".format(ord(c))
 	
+	#calculo de crc para dados a serem enviados
+	m =  vers + ih + ts + tl + ide + fl + frag + time + prot + source + dest + s + padd
+	check =  crc16(m)
+		
+	#pacote final de envio
 	pacote = vers + ih + ts + tl + ide + fl + frag + time + prot + check + source + dest + s + padd
 	return pacote
 
