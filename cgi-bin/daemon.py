@@ -110,8 +110,6 @@ def criaPaginaResposta(dic,port):
 		for line in linhas:
 			html = html + "<h3>" + line + "</h3>"
 		
-		html = html + "<h3>" + dic['options'] + "</h3>"
-
 
 	#Comando DF
 	elif(int(dic['protocol'],2)==2):
@@ -207,35 +205,45 @@ def criaPaginaResposta(dic,port):
 		for line in linhas:
 			html = html + "<h3>" + line + "</h3>"
 	else:
-	     html = "<h1>" +  "NOT COMMAND" + "</h1>"	
+	     html = maq + "<h1>" +  "NO COMMAND" + "</h1>"	
 	     
 	return html
 
-def criaCabecalho(version, ihl, type_of_service, total_length, identification, flags, fragment_offset, time_to_live, protocol, header_checksum, source_address, destination_address, options, padding):
+def criaCabecalho(version, ihl, type_of_service, total_length, identification, flags, fragment_offset, time_to_live, protocol, header_checksum, source_address, destination_address, options, padding,html):
 	vers = "{:04b}".format(version)
 	ih =  "{:04b}".format(ihl)
 	ts =  "{:08b}".format(type_of_service)
-	tl = "{:016b}".format(total_length)
 	ide =  "{:016b}".format(identification)
 	fl =  "{:03b}".format(flags)
 	frag =  "{:013b}".format(fragment_offset)
 	time =  "{:08b}".format(time_to_live)
 	prot =  "{:08b}".format(protocol)
-	check =  "{:016b}".format(header_checksum)
 	source =  "{:032b}".format(source_address)
 	dest = "{:032b}".format(destination_address)
 	padd =  "{:08b}".format(padding)
 	
-	s = ''
 	
-	#se options esta vazio zera 32 bits
-	if not options:
-		s = "{:032b}".format(0)	
-	else:
-		for c in options:
-			s =  s + "{:08b}".format(ord(c))
 	
-	cabecalho = vers + ih + ts + tl + ide + fl + frag + time + prot + check + source + dest + s + padd
+	#transforma pagina html em bits para envio junto ao cabeçalho
+	h = ''
+	t = 0
+	for c in html:
+		if(c!=''):
+			h =  h + "{:08b}".format(ord(c))
+		t = t + 1
+	
+		
+	
+	#tamanho total da mensagem
+	tl = "{:016b}".format(total_length)
+
+	#calculo checksum
+	m =  vers + ih + ts + tl + ide + fl + frag + time + prot + source + dest + padd + h
+	check = crc16(m)
+
+	
+	#retorna cabecalho
+	cabecalho = vers + ih + ts + tl + ide + fl + frag + time + prot + check + source + dest + padd
 	return cabecalho
 
 #Funcao que cria pacote de resposta
@@ -274,6 +282,8 @@ def criaPacoteResposta(mensagem, port):
 		elif(protocol==4):
 			comando_html = "<h2> ###Comando UPTIME:</h2>"
 		
+			
+		
 		#obtem cheksum de mensagem recebida para verificacao
 		checksum_rec = crc16(mensagem[0:80]+mensagem[96:])
 		
@@ -302,7 +312,8 @@ def criaPacoteResposta(mensagem, port):
 			t = t + 1
 		
 		total_length = 24 + t
-		cabecalho = criaCabecalho(version,ihl,type_of_service,total_length, identification, flags,fragment_offset, time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+
+		cabecalho = criaCabecalho(version,ihl,type_of_service,total_length, identification, flags,fragment_offset, time_to_live, protocol, header_checksum, source_address, destination_address, options, padding,html)
 		pacote_resposta = cabecalho + s
 		return pacote_resposta
 	

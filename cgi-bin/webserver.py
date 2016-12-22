@@ -41,10 +41,10 @@ def decodificaMensagem(pacote_obtido,pacote_envio,port):
 	dic['header_checksum'] = pacote_obtido[80:96]
 	dic['source_address'] = pacote_obtido[96:128]
 	dic['destination_address'] = pacote_obtido[128:160]
-	dic['opcoes'] = pacote_obtido[160:192]
-	dic['padding'] = pacote_obtido[192:200]
+	dic['opcoes'] = pacote_obtido[160:160]
+	dic['padding'] = pacote_obtido[160:168]
 	tamanho = len(pacote_obtido)
-	html_bin = pacote_obtido[200:tamanho]#guarda versao binaria de html
+	html_bin = pacote_obtido[168:tamanho]#guarda versao binaria de html
 	protocol = int(dic['protocol'],2)#guarda versao numerica de protocol
 	
 	if(port==9001):
@@ -87,15 +87,30 @@ def decodificaMensagem(pacote_obtido,pacote_envio,port):
 	dic_envio = {}
 	dic_envio['time_to_live'] = pacote_envio[64:72]
 	dic_envio['identification'] = pacote_envio[32:48]
+
 	if (int(dic_envio['time_to_live'],2)!=(int(dic['time_to_live'],2)+1)):
 		html = comando_html + "<h3> ERRO DE TIME LIVE </h3>"
 	elif(int(dic_envio['identification'],2)!=(int(dic['identification'],2)-1)):
 		html = comando_html + "<h3> ERRO DE IDENTIFICATION </h3>"
 	elif(dic['flags']!='111'):
 		html = comando_html + "<h3> ERRO DE FLAG </h3>"
+
+	#verificacao de checksum de mensagem recebida
+	checksum_rec = dic['header_checksum'] #checksum recebido no campo da mensagem recebida
+	
+	#mensagem recebida sem campo de checksum
+	m = dic['version'] + dic['ihl'] + dic['type_of_service'] + dic['total_length'] + dic['identification'] + dic['flags'] + dic['fragment_offset'] + dic['time_to_live'] + dic['protocol'] + dic['source_address']  + dic['destination_address'] + dic['padding'] + html_bin		
+	
+	checksum = crc16(m) #calcula checksum da mensagem recebida
+
+	#compara checksum recebido com o calculado 
+	if(checksum!=checksum_rec):
+		html = comando_html + "<h3> ERRO DE CHECKSUM NA RESPOSTA  </h3>"
+		
 	
 	
 	return html
+
 #Define funcao inicia conexao Socket Cliente TCP
 def startClientSocket(host,port,msg):
 	
@@ -145,6 +160,7 @@ def criaPacote(version, ihl, type_of_service, total_length, identification, flag
 
 def threadMaq1(form,host,port):
 		
+	tem_comando = False
 	# Contrucao de pacote para MAQUINA 1 
 	
 	#COMANDO PS - MAQUINA 1	
@@ -152,6 +168,7 @@ def threadMaq1(form,host,port):
 	maq1_ps = form.getvalue("maq1_ps")
 	maq1_ps_t = form.getvalue("maq1-ps")
 	if(maq1_ps=='ps'):
+		tem_comando = True
 		protocol = 1
 		version = 2
 		ihl = 15
@@ -191,6 +208,7 @@ def threadMaq1(form,host,port):
 	maq1_df = form.getvalue("maq1_df")
 	maq1_df_t = form.getvalue("maq1-df")
 	if(maq1_df=='df'):
+		tem_comando = True
 		protocol = 2
 		version = 2
 		ihl = 15
@@ -228,6 +246,7 @@ def threadMaq1(form,host,port):
 	maq1_finger = form.getvalue("maq1_finger")
 	maq1_finger_t = form.getvalue("maq1-finger")
 	if(maq1_finger=='finger'):
+		tem_comando = True
 		protocol = 3
 		version = 2
 		ihl = 15
@@ -263,6 +282,7 @@ def threadMaq1(form,host,port):
 	maq1_uptime = form.getvalue("maq1_uptime")
 	maq1_uptime_t = form.getvalue("maq1-uptime")
 	if(maq1_uptime=='uptime'):
+		tem_comando = True
 		protocol = 4
 		version = 2
 		ihl = 15
@@ -293,15 +313,40 @@ def threadMaq1(form,host,port):
 			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
 			print(html)
 
+	
+	#Verifica se nenhum opcao de comando foi selecionada
+	if not tem_comando:
+		protocol = 0
+		version = 2
+		ihl = 15
+		type_of_service = 0
+		identification = 1
+		flags = 0
+		fragment_offset = 0
+		time_to_live = 1
+		source_address = 3232235881
+		destination_address = 3232235879
+		header_checksum = 0
+		options = ""
+		padding = 0
+		total_length = 24 #bytes
+		pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+		pacote_obtido = startClientSocket(host,port,pacote_envio)
+		html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+		print(html)
+
 def threadMaq2(form,host,port):
-		
-	# Contrucao de pacote para MAQUINA 1 
+
+	tem_comando = False		
+
+	# Contrucao de pacote para MAQUINA 2
 	
 	#COMANDO PS - MAQUINA 2
 	
 	maq2_ps = form.getvalue("maq2_ps")
 	maq2_ps_t = form.getvalue("maq2-ps")
 	if(maq2_ps=='ps'):
+		tem_comando = True
 		protocol = 1
 		version = 2
 		ihl = 15
@@ -341,6 +386,7 @@ def threadMaq2(form,host,port):
 	maq2_df = form.getvalue("maq2_df")
 	maq2_df_t = form.getvalue("maq2-df")
 	if(maq2_df=='df'):
+		tem_comando = True
 		protocol = 2
 		version = 2
 		ihl = 15
@@ -378,6 +424,7 @@ def threadMaq2(form,host,port):
 	maq2_finger = form.getvalue("maq2_finger")
 	maq2_finger_t = form.getvalue("maq2-finger")
 	if(maq2_finger=='finger'):
+		tem_comando = True
 		protocol = 3
 		version = 2
 		ihl = 15
@@ -413,6 +460,7 @@ def threadMaq2(form,host,port):
 	maq2_uptime = form.getvalue("maq2_uptime")
 	maq2_uptime_t = form.getvalue("maq2-uptime")
 	if(maq2_uptime=='uptime'):
+		tem_comando = True
 		protocol = 4
 		version = 2
 		ihl = 15
@@ -442,8 +490,33 @@ def threadMaq2(form,host,port):
 			pacote_obtido = startClientSocket(host,port,pacote_envio)
 			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
 			print(html)
+
+
+	#Verifica se nenhum opcao de comando foi selecionada
+	if not tem_comando:
+		protocol = 0
+		version = 2
+		ihl = 15
+		type_of_service = 0
+		identification = 1
+		flags = 0
+		fragment_offset = 0
+		time_to_live = 1
+		source_address = 3232235881
+		destination_address = 3232235879
+		header_checksum = 0
+		options = ""
+		padding = 0
+		total_length = 24 #bytes
+		pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+		pacote_obtido = startClientSocket(host,port,pacote_envio)
+		html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+		print(html)
+
+	
 def threadMaq3(form,host,port):
 		
+	tem_comando = False
 	# Contrucao de pacote para MAQUINA 1 
 	
 	#COMANDO PS - MAQUINA 3
@@ -451,6 +524,7 @@ def threadMaq3(form,host,port):
 	maq3_ps = form.getvalue("maq3_ps")
 	maq3_ps_t = form.getvalue("maq3-ps")
 	if(maq3_ps=='ps'):
+		tem_comando = True
 		protocol = 1
 		version = 2
 		ihl = 15
@@ -490,6 +564,7 @@ def threadMaq3(form,host,port):
 	maq3_df = form.getvalue("maq3_df")
 	maq3_df_t = form.getvalue("maq3-df")
 	if(maq3_df=='df'):
+		tem_comando = True
 		protocol = 2
 		version = 2
 		ihl = 15
@@ -527,6 +602,7 @@ def threadMaq3(form,host,port):
 	maq3_finger = form.getvalue("maq3_finger")
 	maq3_finger_t = form.getvalue("maq3-finger")
 	if(maq3_finger=='finger'):
+		tem_comando = True
 		protocol = 3
 		version = 2
 		ihl = 15
@@ -557,9 +633,11 @@ def threadMaq3(form,host,port):
 			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
 			print(html)
 
+	#COMANDO UPTIME - MAQUINA 3
 	maq3_uptime = form.getvalue("maq3_uptime")
 	maq3_uptime_t = form.getvalue("maq3-uptime")
 	if(maq3_uptime=='uptime'):
+		tem_comando = True
 		protocol = 4
 		version = 2
 		ihl = 15
@@ -583,12 +661,33 @@ def threadMaq3(form,host,port):
 		else:
 			options = maq3_uptime_t
 			total_length = 21
-			for caracter in maq1_uptime_t:
+			for caracter in maq3_uptime_t:
 				total_length = total_length + 1
 			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
 			pacote_obtido = startClientSocket(host,port,pacote_envio)
 			html = decodificaMensagem(pacote_obtido,pacote_envio,port)
 			print(html)
+
+	#Verifica se nenhum opcao de comando foi selecionada
+	if not tem_comando:
+		protocol = 0
+		version = 2
+		ihl = 15
+		type_of_service = 0
+		identification = 1
+		flags = 0
+		fragment_offset = 0
+		time_to_live = 1
+		source_address = 3232235881
+		destination_address = 3232235879
+		header_checksum = 0
+		options = ""
+		padding = 0
+		total_length = 24 #bytes
+		pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
+		pacote_obtido = startClientSocket(host,port,pacote_envio)
+		html = decodificaMensagem(pacote_obtido,pacote_envio,port)
+		print(html)
 
 
 def main():
@@ -606,29 +705,8 @@ def main():
 	threadMaq1(form,host,9001)
 	threadMaq2(form,host,9002)
 	threadMaq3(form,host,9003)
-	"""	
-	#Cria uma thread para cada porta
-	try:
-		start_new_thread(threadMaq1, (form,host,9001,))
-		#start_new_thread(startServerTCP, (host,9002,))
-		#start_new_thread(startServerTCP, (host,9003,))
-	except:
-		print("Nao foi possivel criar threads")"""
 	
 	
 	
-	
-		
-
-
-
-	
-	
-	
-	
-
-	
-	
-
 #chama funcao principal
 main()
