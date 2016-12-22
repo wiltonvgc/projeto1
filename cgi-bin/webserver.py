@@ -158,7 +158,8 @@ def criaPacote(version, ihl, type_of_service, total_length, identification, flag
 	pacote = vers + ih + ts + tl + ide + fl + frag + time + prot + check + source + dest + s + padd
 	return pacote
 
-def threadMaq1(form,host,port):
+#Funcao que envia requisicoes da MAQ1
+def enviaMaq1(form,host,port):
 		
 	tem_comando = False
 	# Contrucao de pacote para MAQUINA 1 
@@ -335,7 +336,8 @@ def threadMaq1(form,host,port):
 		html = decodificaMensagem(pacote_obtido,pacote_envio,port)
 		print(html)
 
-def threadMaq2(form,host,port):
+#Funcao que envia requisicoes da MAQ2
+def enviaMaq2(form,host,port):
 
 	tem_comando = False		
 
@@ -513,8 +515,8 @@ def threadMaq2(form,host,port):
 		html = decodificaMensagem(pacote_obtido,pacote_envio,port)
 		print(html)
 
-	
-def threadMaq3(form,host,port):
+#Funcao que envia requisicoes da MAQ3	
+def enviaMaq3(form,host,port):
 		
 	tem_comando = False
 	# Contrucao de pacote para MAQUINA 1 
@@ -693,7 +695,8 @@ def threadMaq3(form,host,port):
 def main():
 	#hablita cgi
 	cgitb.enable() 
-
+	
+	#HOST
 	host = '192.168.1.101' 
 
 
@@ -702,9 +705,10 @@ def main():
 
 	form = cgi.FieldStorage()
 	
-	threadMaq1(form,host,9001)
-	threadMaq2(form,host,9002)
-	threadMaq3(form,host,9003)
+	
+	enviaMaq1(form,host,9001)
+	enviaMaq2(form,host,9002)
+	enviaMaq3(form,host,9003)
 	
 	
 	
