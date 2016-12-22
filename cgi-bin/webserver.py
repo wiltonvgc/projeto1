@@ -121,7 +121,7 @@ def startClientSocket(host,port,msg):
 
 	tcp.send(msg)
 
-	msg_recebida = tcp.recv(5000)
+	msg_recebida = tcp.recv(10000)
 
 	tcp.close()
 	
