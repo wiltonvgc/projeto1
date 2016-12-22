@@ -99,17 +99,22 @@ def criaPaginaResposta(dic,port):
 				barra_n = barra_n + [i]
 			i = i + 1
 		
+		
 		#separa linhas de resultado
 		i = 0
 		linhas = [] #guarda linhas resultados
 		for j in barra_n:
 			linhas = linhas + [out[i:j]]
 			i = j + 1
-
+						
+		#contador de linhas por questoes de limite de bytes de envio => limite sera 10 linhas de resultados
+		cont = 0	
 		#imprimi linhas em html
 		for line in linhas:
 			html = html + "<h3>" + line + "</h3>"
-		
+			cont = cont + 1
+			if(cont>10):
+				break
 
 	#Comando DF
 	elif(int(dic['protocol'],2)==2):
@@ -139,8 +144,12 @@ def criaPaginaResposta(dic,port):
 			i = j + 1
 
 		#imprimi linhas em html
+		cont = 0
 		for line in linhas:
 			html = html + "<h3>" + line + "</h3>"
+			cont = cont + 1
+			if(cont>10):
+				break
 
 	#Comando FINGER
 	elif(int(dic['protocol'],2)==3):
@@ -170,8 +179,12 @@ def criaPaginaResposta(dic,port):
 			i = j + 1
 
 		#imprimi linhas em html
+		cont = 0
 		for line in linhas:
 			html = html + "<h3>" + line + "</h3>"
+			cont = cont + 1
+			if(cont>10):
+				break
 
 
 	#Comando UPTIME
@@ -202,8 +215,12 @@ def criaPaginaResposta(dic,port):
 			i = j + 1
 
 		#imprimi linhas em html
+		cont = 0
 		for line in linhas:
 			html = html + "<h3>" + line + "</h3>"
+			cont = cont + 1
+			if(cont>10):
+				break
 	else:
 	     html = maq + "<h1>" +  "NO COMMAND" + "</h1>"	
 	     

@@ -121,7 +121,7 @@ def startClientSocket(host,port,msg):
 
 	tcp.send(msg)
 
-	msg_recebida = tcp.recv(10000)
+	msg_recebida = tcp.recv(8096)
 
 	tcp.close()
 	
@@ -410,7 +410,7 @@ def threadMaq2(form,host,port):
 		else:
 			options = maq2_df_t
 			total_length = 21
-			for caracter in maq2s_df_t:
+			for caracter in maq2_df_t:
 				total_length = total_length + 1
 			pacote_envio = criaPacote(version, ihl, type_of_service, total_length, identification,flags, fragment_offset,time_to_live, protocol, header_checksum, source_address, destination_address, options, padding)
 			pacote_obtido = startClientSocket(host,port,pacote_envio)
